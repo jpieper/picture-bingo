@@ -1,7 +1,9 @@
-import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
+import Html exposing (Html, button, div, text, ul, li, img, input, form)
+import Html.Events exposing (onClick, on)
+import Html.Attributes exposing (class, src, action, method, type_)
 import Http
 import Json.Decode as Decode
+import FileReader
 
 
 main =
@@ -19,8 +21,17 @@ type alias Model =
 
 type alias CardDetails =
     {
-        pictures : List String
+        pictures : List Picture
     }
+
+type alias Picture =
+    {
+        name : String,
+        url : String
+    }
+
+type alias Files =
+    List FileReader.NativeFile
 
 
 init = (Model "" 5 (CardDetails []), getCardName)
@@ -31,6 +42,8 @@ type Msg = Increment
          | Decrement
          | NewCard (Result Http.Error String)
          | NewCardDetails (Result Http.Error CardDetails)
+         | FileUpload Files
+         | UploadComplete (Result Http.Error Decode.Value)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -57,6 +70,20 @@ update msg model =
     NewCardDetails (Err _) ->
         (model, Cmd.none)
 
+    FileUpload (files) ->
+        case List.head files of
+            Just file ->
+                (model, sendFileToServer file)
+            Nothing ->
+                (model, Cmd.none)
+
+
+    UploadComplete (Ok _) ->
+        (model, Cmd.none)
+
+    UploadComplete (Err _) ->
+        (model, Cmd.none)
+
 
 -- VIEW
 
@@ -64,10 +91,21 @@ view : Model -> Html Msg
 view model =
   div []
     [ div [] [ Html.h2 [] [ text model.cardName ] ]
+    , ul [ class "picture-list" ] <| List.map viewPicture model.details.pictures
+    , input [ type_ "file", onchange FileUpload ] []
     , button [ onClick Decrement ] [ text "-" ]
     , div [] [ text (toString model) ]
     , button [ onClick Increment ] [ text "+" ]
     ]
+
+viewPicture picture =
+    li [] [ text (toString picture.name)
+          , img [ src picture.url ] [] ]
+
+onchange action =
+    on
+        "change"
+        (Decode.map action FileReader.parseSelectedFiles)
 
 -- SUBSCRIPTIONS
 
@@ -93,4 +131,22 @@ getCardDetails model =
 
 decodeCardDetails : Decode.Decoder CardDetails
 decodeCardDetails =
-    Decode.at ["pictures"] (Decode.map CardDetails (Decode.list Decode.string))
+    Decode.at ["pictures"] (Decode.map CardDetails (Decode.list pictureDecoder))
+
+pictureDecoder : Decode.Decoder Picture
+pictureDecoder =
+    Decode.map2 Picture
+        (Decode.field "name" Decode.string)
+        (Decode.field "url" Decode.string)
+
+sendFileToServer : FileReader.NativeFile -> Cmd Msg
+sendFileToServer buf =
+    let
+        body =
+            Http.multipartBody
+                [ Http.stringPart "name" "test_name"
+                , FileReader.filePart "file" buf
+                ]
+    in
+        Http.post "/add_picture" body Decode.value
+            |> Http.send UploadComplete

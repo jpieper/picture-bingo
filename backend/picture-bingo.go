@@ -20,8 +20,11 @@ func init() {
 	})
 
 	router.GET("/v1/get_card", func(c *gin.Context) {
-		pictures := []string{"hello", "stuff"}
-		c.JSON(200, gin.H{"pictures": pictures})
+		c.JSON(200, gin.H{"pictures": []gin.H{
+			gin.H{"name": "hello",
+				"url": "hello_url"},
+			gin.H{"name": "biz",
+				"url": "bizzy_url"}}})
 	})
 
 	http.Handle("/", router)

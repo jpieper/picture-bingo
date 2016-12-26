@@ -7,6 +7,8 @@
    * Removing an image
    * Changing settings
  * Implement PDF generation
+ * Drag and drop image accept
+ * Try switching to keyed picture elements
 
 # Backend #
 
