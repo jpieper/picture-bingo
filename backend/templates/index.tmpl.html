@@ -8,6 +8,13 @@
     <h1>Picture Bingo <a type="button" class="btn btn-lg btn-primary" href="/"><span class="glyphiconglyphicon-flash"></span> Download PDF</a> </h1>
   </div>
 </div>
+<div class = "container" id="main"></div>
+<script type="text/javascript" src="static/bingo.js"></script>
+<script>
+  var node = document.getElementById("main");
+  var app = Elm.Main.embed(node);
+</script>
+
 <div class="container">
   <div class="row">
     <div class="col-md-6">
