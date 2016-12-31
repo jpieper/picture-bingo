@@ -144,9 +144,8 @@ sendFileToServer buf =
     let
         body =
             Http.multipartBody
-                [ Http.stringPart "name" "test_name"
-                , FileReader.filePart "file" buf
+                [ FileReader.filePart "file" buf
                 ]
     in
-        Http.post "/add_picture" body Decode.value
+        Http.post "/v1/add_picture" body Decode.value
             |> Http.send UploadComplete
