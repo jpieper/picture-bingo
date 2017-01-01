@@ -69,7 +69,7 @@ func get_card(appengine_context context.Context, bucket *storage.BucketHandle, n
 func write_card(appengine_context context.Context, bucket *storage.BucketHandle,
 	name string, card Card, required_generation int64) (error) {
 
-	object := bucket.Object(name)
+	object := bucket.Object(name + "/info")
 
 	maybe_object := func() *storage.ObjectHandle {
 		if (required_generation != 0) {
@@ -128,7 +128,7 @@ func add_picture(c *gin.Context) {
 
 	pictureUuid := uuid.New().String()
 
-	object := bucket.Object(pictureUuid)
+	object := bucket.Object(cardName + "/" + pictureUuid)
 	object_writer := object.NewWriter(appengine_context)
 
 	jpeg.Encode(object_writer, small, nil)
@@ -138,7 +138,7 @@ func add_picture(c *gin.Context) {
 	}
 
 	blob_key, err := blobstore.BlobKeyForFile(
-		appengine_context, "/gs/picture-bingo.appspot.com/" + pictureUuid)
+		appengine_context, "/gs/picture-bingo.appspot.com/" + cardName + "/" + pictureUuid)
 	if (err != nil) {
 		panic(err)
 	}
