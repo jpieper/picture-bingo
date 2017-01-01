@@ -73,7 +73,7 @@ update msg model =
     FileUpload (files) ->
         case List.head files of
             Just file ->
-                (model, sendFileToServer file)
+                (model, sendFileToServer model file)
             Nothing ->
                 (model, Cmd.none)
 
@@ -125,7 +125,7 @@ decodeCardName =
 
 getCardDetails model =
     let
-        url = "/v1/get_card?card=" ++ model.cardName
+        url = "/v1/get_card/" ++ model.cardName
     in
         Http.send NewCardDetails (Http.get url decodeCardDetails)
 
@@ -139,13 +139,12 @@ pictureDecoder =
         (Decode.field "name" Decode.string)
         (Decode.field "url" Decode.string)
 
-sendFileToServer : FileReader.NativeFile -> Cmd Msg
-sendFileToServer buf =
+sendFileToServer : Model -> FileReader.NativeFile -> Cmd Msg
+sendFileToServer model buf =
     let
         body =
             Http.multipartBody
-                [ FileReader.filePart "file" buf
-                ]
+                [ FileReader.filePart "file" buf ]
     in
-        Http.post "/v1/add_picture" body Decode.value
+        Http.post ("/v1/add_picture/" ++ model.cardName) body Decode.value
             |> Http.send UploadComplete
