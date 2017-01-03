@@ -15,13 +15,14 @@ import ("image"
 	"github.com/google/uuid"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/blobstore"
- 	aimage "google.golang.org/appengine/image"
+	aimage "google.golang.org/appengine/image"
+	"github.com/jung-kurt/gofpdf"
 	_ "image/png"
 )
 
 type Picture struct {
 	CloudID string `json:"cloud_id"`
-	WebURI string `json:"web_uri"`
+	WebURL string `json:"web_url"`
 }
 
 type Card struct {
@@ -154,7 +155,7 @@ func add_picture(c *gin.Context) {
 	}
 
 	update_card(appengine_context, cardName, func(card Card) Card {
-		pic := Picture{CloudID: pictureUuid, WebURI: url.RequestURI()}
+		pic := Picture{CloudID: pictureUuid, WebURL: url.String()}
 		card.Pictures = append(card.Pictures, pic)
 		// TODO: Fail in some way if we have too many pictures.
 		return card
@@ -207,6 +208,15 @@ func init() {
 		card, _ := get_card(appengine_context, bucket, c.Param("name"))
 
 		c.JSON(200, card)
+	})
+
+	router.GET("/v1/make_pdf/:name", func(c *gin.Context) {
+		pdf := gofpdf.New("P", "mm", "letter", "")
+		pdf.AddPage()
+		pdf.SetFont("Arial", "B", 16)
+		pdf.Cell(40, 10, "Hello world!")
+		c.Status(200)
+		pdf.Output(c.Writer)
 	})
 
 	router.POST("/v1/add_picture/:name", add_picture)

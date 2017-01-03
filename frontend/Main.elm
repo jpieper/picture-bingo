@@ -1,6 +1,6 @@
 import Html exposing (Html, button, div, text, ul, li, img, input, form)
 import Html.Events exposing (onClick, on)
-import Html.Attributes exposing (class, src, action, method, type_)
+import Html.Attributes exposing (class, src, action, method, href, target, type_)
 import Http
 import Json.Decode as Decode
 import FileReader
@@ -27,7 +27,7 @@ type alias CardDetails =
 type alias Picture =
     {
         cloud_id : String,
-        web_uri : String
+        web_url : String
     }
 
 type alias Files =
@@ -86,13 +86,15 @@ view : Model -> Html Msg
 view model =
   div []
     [ div [] [ Html.h2 [] [ text model.cardName ] ]
+    , Html.a [ Html.Attributes.href ("/v1/make_pdf/" ++ model.cardName),
+             Html.Attributes.target "_blank" ] [ text "Download PDF" ]
     , ul [ class "picture-list" ] <| List.map viewPicture model.details.pictures
     , input [ type_ "file", onchange FileUpload ] []
     ]
 
 viewPicture picture =
     li [] [ text (toString picture.cloud_id)
-          , img [ src picture.web_uri ] [] ]
+          , img [ src picture.web_url ] [] ]
 
 onchange action =
     on
@@ -129,7 +131,7 @@ pictureDecoder : Decode.Decoder Picture
 pictureDecoder =
     Decode.map2 Picture
         (Decode.field "cloud_id" Decode.string)
-        (Decode.field "web_uri" Decode.string)
+        (Decode.field "web_url" Decode.string)
 
 sendFileToServer : Model -> FileReader.NativeFile -> Cmd Msg
 sendFileToServer model buf =
