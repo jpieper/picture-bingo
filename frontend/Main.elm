@@ -4,6 +4,7 @@ import Html.Attributes exposing (class, src, action, method, type_)
 import Http
 import Json.Decode as Decode
 import FileReader
+import Debug
 
 
 main =
@@ -15,7 +16,6 @@ main =
 type alias Model =
     {
         cardName : String,
-        value : Int,
         details : CardDetails
     }
 
@@ -26,63 +26,58 @@ type alias CardDetails =
 
 type alias Picture =
     {
-        name : String,
-        url : String
+        cloud_id : String,
+        web_uri : String
     }
 
 type alias Files =
     List FileReader.NativeFile
 
 
-init = (Model "" 5 (CardDetails []), getCardName)
+init = (Model "" (CardDetails []), getCardName)
 
 -- UPDATE
 
-type Msg = Increment
-         | Decrement
-         | NewCard (Result Http.Error String)
+type Msg = NewCard (Result Http.Error String)
          | NewCardDetails (Result Http.Error CardDetails)
          | FileUpload Files
          | UploadComplete (Result Http.Error Decode.Value)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-  case msg of
-    Increment ->
-      ({ model | value = model.value + 1 }, Cmd.none)
+  let
+      _ = Debug.log "update" (msg, model)
+  in
+      case msg of
+          NewCard (Ok cardName) ->
+              let
+                  newModel = { model | cardName = cardName}
+              in
+                  (newModel, getCardDetails newModel)
 
-    Decrement ->
-      ({ model | value = model.value - 1 }, Cmd.none)
+          -- Ignore errors for now
+          NewCard (Err _) ->
+              ({ model | cardName = (toString (Err))}, Cmd.none)
 
-    NewCard (Ok cardName) ->
-      let
-          newModel = { model | cardName = cardName}
-      in
-          (newModel, getCardDetails newModel)
+          NewCardDetails (Ok details) ->
+              ({ model | details = details }, Cmd.none)
 
-    -- Ignore errors for now
-    NewCard (Err _) ->
-      ({ model | cardName = (toString (Err))}, Cmd.none)
+          NewCardDetails (Err _) ->
+              (model, Cmd.none)
 
-    NewCardDetails (Ok details) ->
-        ({ model | details = details }, Cmd.none)
-
-    NewCardDetails (Err _) ->
-        (model, Cmd.none)
-
-    FileUpload (files) ->
-        case List.head files of
-            Just file ->
-                (model, sendFileToServer model file)
-            Nothing ->
-                (model, Cmd.none)
+          FileUpload (files) ->
+              case List.head files of
+                  Just file ->
+                      (model, sendFileToServer model file)
+                  Nothing ->
+                      (model, Cmd.none)
 
 
-    UploadComplete (Ok _) ->
-        (model, Cmd.none)
+          UploadComplete (Ok _) ->
+              (model, getCardDetails model)
 
-    UploadComplete (Err _) ->
-        (model, Cmd.none)
+          UploadComplete (Err _) ->
+              (model, Cmd.none)
 
 
 -- VIEW
@@ -93,14 +88,11 @@ view model =
     [ div [] [ Html.h2 [] [ text model.cardName ] ]
     , ul [ class "picture-list" ] <| List.map viewPicture model.details.pictures
     , input [ type_ "file", onchange FileUpload ] []
-    , button [ onClick Decrement ] [ text "-" ]
-    , div [] [ text (toString model) ]
-    , button [ onClick Increment ] [ text "+" ]
     ]
 
 viewPicture picture =
-    li [] [ text (toString picture.name)
-          , img [ src picture.url ] [] ]
+    li [] [ text (toString picture.cloud_id)
+          , img [ src picture.web_uri ] [] ]
 
 onchange action =
     on
@@ -136,8 +128,8 @@ decodeCardDetails =
 pictureDecoder : Decode.Decoder Picture
 pictureDecoder =
     Decode.map2 Picture
-        (Decode.field "name" Decode.string)
-        (Decode.field "url" Decode.string)
+        (Decode.field "cloud_id" Decode.string)
+        (Decode.field "web_uri" Decode.string)
 
 sendFileToServer : Model -> FileReader.NativeFile -> Cmd Msg
 sendFileToServer model buf =

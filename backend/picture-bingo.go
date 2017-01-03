@@ -4,7 +4,6 @@ import ("image"
 	"log"
 	"math/big"
 	"net/http"
-	"net/url"
 	"image/jpeg"
 	"encoding/json"
 	"strconv"
@@ -21,12 +20,12 @@ import ("image"
 )
 
 type Picture struct {
-	cloud_id string
-	web_url url.URL
+	CloudID string `json:"cloud_id"`
+	WebURI string `json:"web_uri"`
 }
 
 type Card struct {
-	pictures []Picture
+	Pictures []Picture `json:"pictures"`
 }
 
 func get_client(appengine_context context.Context) (*storage.Client) {
@@ -83,7 +82,10 @@ func write_card(appengine_context context.Context, bucket *storage.BucketHandle,
 
 	writer := maybe_object.NewWriter(appengine_context)
 	encoder := json.NewEncoder(writer)
-	encoder.Encode(card)
+	err := encoder.Encode(&card)
+	if (err != nil) {
+		panic(err)
+	}
 
 	return writer.Close()
 }
@@ -98,7 +100,10 @@ func update_card(appengine_context context.Context, name string, updater CardUpd
 		new_card := updater(card)
 		// TODO: Figure out what error is returned for a
 		// precondition failure.
-		_ = write_card(appengine_context, bucket, name, new_card, ver)
+		err := write_card(appengine_context, bucket, name, new_card, ver)
+		if (err != nil) {
+			panic(err)
+		}
 		break
 	}
 }
@@ -149,11 +154,13 @@ func add_picture(c *gin.Context) {
 	}
 
 	update_card(appengine_context, cardName, func(card Card) Card {
-		pic := Picture{cloud_id: pictureUuid, web_url: *url}
-		card.pictures = append(card.pictures, pic)
+		pic := Picture{CloudID: pictureUuid, WebURI: url.RequestURI()}
+		card.Pictures = append(card.Pictures, pic)
 		// TODO: Fail in some way if we have too many pictures.
 		return card
 	})
+
+	c.JSON(200, gin.H{"status": "OK"})
 }
 
 func getRandInt(max int) int {
@@ -185,6 +192,7 @@ func init() {
 		client := get_client(appengine_context)
 		bucket := get_bucket(client)
 		var card Card
+		card.Pictures = make([]Picture, 0)
 		err := write_card(appengine_context, bucket, newCardName, card, 0)
 		if (err != nil) {
 			panic(err)
@@ -193,11 +201,12 @@ func init() {
 	})
 
 	router.GET("/v1/get_card/:name", func(c *gin.Context) {
-		c.JSON(200, gin.H{"pictures": []gin.H{
-			gin.H{"name": "hello",
-				"url": "hello_url"},
-			gin.H{"name": "biz",
-				"url": "bizzy_url"}}})
+		appengine_context := appengine.NewContext(c.Request)
+		client := get_client(appengine_context)
+		bucket := get_bucket(client)
+		card, _ := get_card(appengine_context, bucket, c.Param("name"))
+
+		c.JSON(200, card)
 	})
 
 	router.POST("/v1/add_picture/:name", add_picture)
